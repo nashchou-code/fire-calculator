@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>投資指揮官 v8.7 (最終修正版)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --highlight: #3498db;
+            --danger: #e74c3c;
+            --success: #27ae60;
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-main: #2c3e50;
+            --text-sub: #7f8c8d;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-main);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 25px;
+        }
+
+        .full-width { grid-column: 1 / -1; }
+
+        .card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+
+        h2 { text-align: center; margin: 0 0 20px 0; color: var(--primary); font-weight: 800; letter-spacing: -0.5px; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;}
+
+        /* Dashboard Mini */
+        .dashboard-mini {
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(44, 62, 80, 0.25);
+        }
+        .dash-item label { color: #bdc3c7; font-size: 0.75rem; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
+        .dash-item span { font-size: 1.1rem; font-weight: 700; display: block; word-break: break-all;}
+        .full-row { grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; margin-top: 5px; }
+
+        h3 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 25px 0 15px 0;
+            padding-left: 10px;
+            border-left: 4px solid var(--highlight);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem; color: var(--text-main); }
+        .unit { float: right; font-weight: normal; color: var(--text-sub); font-size: 0.8rem; }
+
+        input, select {
+            width: 100%; padding: 12px; border: 1px solid #e0e0e0;
+            border-radius: 8px; font-size: 1rem; box-sizing: border-box;
+            background-color: #fcfcfc; transition: all 0.2s;
+            appearance: none; 
+        }
+        input:focus { border-color: var(--highlight); outline: none; background-color: #fff; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15); }
+        
+        .input-group-flex { display: flex; gap: 15px; }
+        .input-group-flex > div { flex: 1; }
+
+        /* Toggle Switch */
+        .switch-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            user-select: none;
+            margin-bottom: 10px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+            flex-shrink: 0;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        input:checked + .slider { background-color: var(--success); }
+        input:checked + .slider:before { transform: translateX(24px); }
+        .switch-label-text { font-weight: 700; color: var(--text-main); font-size: 0.95rem; }
+
+        /* Risk Section */
+        .risk-section {
+            background-color: #fff8f8;
+            border: 1px solid #ffebee;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .risk-content { margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ffdce0; }
+        .risk-sub-block { 
+            background: #fff; border: 1px solid #eee; padding: 12px; border-radius: 8px; margin-bottom: 12px; 
+        }
+        .risk-tag-pre { border-left: 4px solid #27ae60; padding-left: 8px; font-size: 0.9rem; font-weight: bold; color: #2c3e50; display: block; margin-bottom: 10px; }
+        .risk-tag-post { border-left: 4px solid #e67e22; padding-left: 8px; font-size: 0.9rem; font-weight: bold; color: #2c3e50; display: block; margin-bottom: 10px; }
+        .risk-input-label { font-size: 0.8rem; color: #7f8c8d; margin-bottom: 4px; display: block; }
+
+        .btn-calculate {
+            background-color: var(--highlight); color: white; border: none;
+            padding: 15px; width: 100%; font-size: 1.1rem; border-radius: 8px;
+            cursor: pointer; margin-top: 25px; font-weight: 700;
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+            transition: all 0.2s;
+        }
+        .btn-calculate:hover { background-color: #2980b9; transform: translateY(-2px); }
+
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        .btn-download {
+            background: #fff; border: 1px solid #ddd; color: #666; padding: 8px 15px; border-radius: 6px; font-size: 0.9rem; cursor: pointer; white-space: nowrap;
+        }
+
+        .chart-wrapper { position: relative; height: 500px; width: 100%; }
+        
+        .metrics-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px;
+        }
+        .metric-card {
+            background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center; border: 1px solid #eee;
+        }
+        .metric-title { font-size: 0.85rem; color: #7f8c8d; margin-bottom: 5px; }
+        .metric-value { font-size: 1.3rem; font-weight: 800; color: var(--primary); }
+        .metric-sub { font-size: 0.75rem; color: #95a5a6; margin-top: 3px; }
+
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; gap: 20px; } 
+            .chart-wrapper { height: 400px; } 
+        }
+
+        @media (max-width: 500px) {
+            body { padding: 10px; }
+            .card { padding: 15px; }
+            .input-group-flex { flex-direction: column; gap: 15px; }
+            .chart-header { flex-direction: column-reverse; align-items: stretch; }
+            .btn-download { width: 100%; text-align: center; padding: 12px; }
+            .chart-wrapper { height: 350px; } 
+            .metrics-grid { grid-template-columns: 1fr; } 
+            .dashboard-mini { gap: 10px; padding: 12px; }
+            .dash-item span { font-size: 1rem; }
+            .switch-container { background: #f9f9f9; padding: 10px; border-radius: 8px; justify-content: space-between; }
+            .switch-label-text { order: 1; }
+            .switch { order: 2; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="full-width">
+        <h2>🚀 投資指揮官 v8.7 <span style="font-size:0.9rem; font-weight:normal; background:#eee; padding:2px 8px; border-radius:12px; color:#555;">最終修正版</span></h2>
+    </div>
+
+    <div class="card">
+        <div class="dashboard-mini">
+            <div class="dash-item">
+                <label>首年每月利息</label>
+                <span id="rt-interest" style="color:#e74c3c">0</span>
+            </div>
+            <div class="dash-item">
+                <label>首年每月淨投入</label>
+                <span id="rt-net" style="color:#2ecc71">0</span>
+            </div>
+            <div class="dash-item full-row">
+                <label>資金槓桿率 (Debt/Asset)</label>
+                <span id="rt-leverage">0%</span>
+            </div>
+        </div>
+
+        <h3>1. 槓桿與貸款</h3>
+        <div class="form-group">
+            <label>貸款金額 <span class="unit">萬元</span></label>
+            <input type="number" id="loanAmount" value="1000" oninput="updateRealTime()">
+        </div>
+        <div class="form-group">
+            <label>貸款利率 <span class="unit">%</span></label>
+            <input type="number" id="loanRate" value="3.0" step="0.1" oninput="updateRealTime()">
+        </div>
+        <div class="form-group">
+            <label>預計清償年齡 <span class="unit">歲</span></label>
+            <input type="number" id="payoffAge" value="65">
+        </div>
+
+        <h3>2. 累積期 (職場)</h3>
+        <div class="form-group">
+            <label>目前年齡 <span class="unit">歲</span></label>
+            <input type="number" id="currentAge" value="45">
+        </div>
+        <div class="form-group">
+            <label>目前投資總額 (含槓桿) <span class="unit">萬元</span></label>
+            <input type="number" id="currentAssets" value="1200">
+        </div>
+        <div class="input-group-flex form-group">
+            <div>
+                <label>每月存入 <span class="unit">萬</span></label>
+                <input type="number" id="monthlySave" value="4.0" step="0.1" oninput="updateRealTime()">
+            </div>
+            <div>
+                <label>存款年增率 <span class="unit">%</span></label>
+                <input type="number" id="savingsGrowth" value="3.0" step="0.1">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>預估年化報酬率 <span class="unit">%</span></label>
+            <input type="number" id="saveRate" value="8.0" step="0.1">
+        </div>
+
+        <h3>3. 退休提領期</h3>
+        <div class="form-group">
+            <label>退休年齡 <span class="unit">歲</span></label>
+            <input type="number" id="retireAge" value="65">
+        </div>
+        <div class="form-group">
+            <label>退休目標生活費 (現值) <span class="unit">萬元/月</span></label>
+            <input type="number" id="monthlySpend" value="5.0" step="0.1">
+        </div>
+        <div class="input-group-flex form-group">
+            <div>
+                <label>退休通膨 <span class="unit">%</span></label>
+                <input type="number" id="inflationRate" value="3.0" step="0.1">
+            </div>
+            <div>
+                <label>年化報酬率 <span class="unit">%</span></label>
+                <input type="number" id="withdrawRate" value="5.0" step="0.1">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>預測終點 <span class="unit">歲</span></label>
+            <input type="number" id="maxAge" value="85">
+        </div>
+
+        <div class="risk-section">
+            <label class="switch-container">
+                <div class="switch">
+                    <input type="checkbox" id="useVolatility" onchange="toggleRiskInputs()">
+                    <span class="slider"></span>
+                </div>
+                <span class="switch-label-text" style="color:#c0392b;">📉 模擬市場波動 (壓力測試)</span>
+            </label>
+            
+            <div id="riskInputs" class="risk-content" style="display:none;">
+                <div class="risk-sub-block">
+                    <span class="risk-tag-pre">🔵 退休前 (積極)</span>
+                    <div class="input-group-flex">
+                        <div>
+                            <span class="risk-input-label">頻率(年)</span>
+                            <input type="number" id="preCrashInterval" value="7">
+                        </div>
+                        <div>
+                            <span class="risk-input-label">跌幅(%)</span>
+                            <input type="number" id="preCrashRate" value="-20" style="color:#e74c3c; font-weight:bold;">
+                        </div>
+                    </div>
+                </div>
+                <div class="risk-sub-block">
+                    <span class="risk-tag-post">🟠 退休後 (保守)</span>
+                    <div class="input-group-flex">
+                        <div>
+                            <span class="risk-input-label">頻率(年)</span>
+                            <input type="number" id="postCrashInterval" value="7">
+                        </div>
+                        <div>
+                            <span class="risk-input-label">跌幅(%)</span>
+                            <input type="number" id="postCrashRate" value="-10" style="color:#e74c3c; font-weight:bold;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-calculate" onclick="calculate()">🚀 重新計算</button>
+    </div>
+
+    <div class="card">
+        <div class="chart-header">
+            <label class="switch-container" title="扣除通膨影響，顯示為現在的購買力" style="margin-bottom:0;">
+                <div class="switch">
+                    <input type="checkbox" id="showRealValue" onchange="calculate()">
+                    <span class="slider"></span>
+                </div>
+                <span class="switch-label-text" style="color:var(--text-main); font-weight:600;">👓 顯示通膨調整後 (實質購買力)</span>
+            </label>
+
+            <button class="btn-download" onclick="downloadChart()">📸 下載報表</button>
+        </div>
+
+        <div class="chart-wrapper">
+            <canvas id="mainChart"></canvas>
+        </div>
+
+        <div class="metrics-grid" id="metricsBox"></div>
+        
+        <div id="analysisBox" style="margin-top:15px; font-size:0.9rem; color:#666; line-height:1.6;"></div>
+    </div>
+</div>
+
+<script>
+    let myChart = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        updateRealTime();
+        toggleRiskInputs();
+        setTimeout(calculate, 300);
+    });
+
+    function toggleRiskInputs() {
+        const isChecked = document.getElementById('useVolatility').checked;
+        document.getElementById('riskInputs').style.display = isChecked ? 'block' : 'none';
+    }
+
+    function getVal(id) { return parseFloat(document.getElementById(id).value) || 0; }
+    function getWan(id) { return getVal(id) * 10000; }
+    function fmt(num) { 
+        if(isNaN(num)) return "0";
+        return new Intl.NumberFormat('zh-TW').format(Math.round(num)); 
+    }
+    function fmtWan(num) { 
+        if(isNaN(num)) return "0";
+        return new Intl.NumberFormat('zh-TW').format(Math.round(num)); 
+    }
+
+    function updateRealTime() {
+        const loan = getWan('loanAmount');
+        const rate = getVal('loanRate') / 100;
+        const income = getWan('monthlySave');
+        const asset = getWan('currentAssets');
+
+        const mInterest = Math.round((loan * rate) / 12);
+        const mNet = income - mInterest;
+
+        document.getElementById('rt-interest').innerText = fmt(mInterest);
+        
+        const netEl = document.getElementById('rt-net');
+        netEl.innerText = fmt(mNet);
+        netEl.style.color = mNet < 0 ? '#e74c3c' : '#2ecc71';
+
+        const leverage = asset > 0 ? (loan / asset) * 100 : 0;
+        document.getElementById('rt-leverage').innerText = leverage.toFixed(1) + "%";
+    }
+
+    function calculate() {
+        try {
+            if (typeof Chart === 'undefined') { return; }
+
+            const loan = getWan('loanAmount');
+            const loanRate = getVal('loanRate') / 100;
+            const payoffAge = getVal('payoffAge');
+            const currentAge = getVal('currentAge');
+            const retireAge = getVal('retireAge');
+            const maxAge = getVal('maxAge');
+            
+            let asset = getWan('currentAssets');
+            const baseMonthlySave = getWan('monthlySave');
+            const savingsGrowth = getVal('savingsGrowth') / 100;
+            
+            const saveRate = getVal('saveRate') / 100;
+            const spend = getWan('monthlySpend');
+            const inflation = getVal('inflationRate') / 100;
+            const withdrawRate = getVal('withdrawRate') / 100;
+
+            const useVolatility = document.getElementById('useVolatility').checked;
+            const preCrashInterval = getVal('preCrashInterval');
+            const preCrashRate = getVal('preCrashRate') / 100;
+            const postCrashInterval = getVal('postCrashInterval');
+            const postCrashRate = getVal('postCrashRate') / 100;
+
+            const showRealValue = document.getElementById('showRealValue').checked;
+
+            if (isNaN(asset)) { return; }
+
+            let labels = [];
+            let dAsset = [];
+            let dNetInput = [];
+            let dInterest = [];
+            
+            let age = currentAge;
+            let maxPosFlow = 0;
+            let minNegFlow = 0;
+            let yearCount = 0; 
+            let totalInterestPaid = 0;
+
+            while(age <= maxAge) {
+                labels.push(age);
+
+                let discountFactor = showRealValue ? Math.pow(1 + inflation, yearCount) : 1;
+
+                // 1. 利息
+                let interest = 0;
+                if(age < payoffAge) interest = loan * loanRate;
+                totalInterestPaid += interest;
+                
+                let interestWan = Math.round((interest / discountFactor) / 10000);
+                dInterest.push(interestWan);
+                if(interestWan > maxPosFlow) maxPosFlow = interestWan;
+
+                // 2. 還款
+                if(age === payoffAge) asset -= loan;
+
+                // 3. 報酬率決定
+                let currentReturnRate;
+                if (age < retireAge) {
+                    currentReturnRate = saveRate;
+                    if (useVolatility && yearCount > 0 && preCrashInterval > 0 && yearCount % preCrashInterval === 0) {
+                        currentReturnRate = preCrashRate;
+                    }
+                } else {
+                    currentReturnRate = withdrawRate;
+                    if (useVolatility && yearCount > 0 && postCrashInterval > 0 && yearCount % postCrashInterval === 0) {
+                        currentReturnRate = postCrashRate;
+                    }
+                }
+
+                // 4. 資金進出
+                let netIn = 0;
+                if(age < retireAge) {
+                    let grownMonthlySave = baseMonthlySave * Math.pow(1 + savingsGrowth, yearCount);
+                    let nominal = grownMonthlySave * 12;
+                    let realNet = nominal - interest;
+                    
+                    asset = (asset * (1 + currentReturnRate)) + realNet;
+                    netIn = realNet;
+                } else {
+                    let years = age - currentAge;
+                    let nominalNeed = (spend * 12) * Math.pow(1+inflation, years);
+                    let out = nominalNeed + interest;
+                    
+                    asset -= out;
+                    if(asset > 0) asset *= (1 + currentReturnRate);
+                    netIn = -nominalNeed; 
+                }
+
+                if(asset < 0) asset = 0;
+
+                dAsset.push(Math.round((asset / discountFactor) / 10000));
+                
+                let netInWan = Math.round((netIn / discountFactor) / 10000);
+                dNetInput.push(netInWan);
+                
+                if(netInWan > 0 && netInWan > maxPosFlow) maxPosFlow = netInWan;
+                if(netInWan < 0 && netInWan < minNegFlow) minNegFlow = netInWan;
+                
+                age++;
+                yearCount++;
+            }
+
+            const finalAsset = dAsset[dAsset.length-1];
+            const finalAssetColor = finalAsset > 0 ? '#27ae60' : '#e74c3c';
+            
+            const metricsHtml = `
+                <div class="metric-card">
+                    <div class="metric-title">🏁 預測終點 (${maxAge}歲) 資產</div>
+                    <div class="metric-value" style="color:${finalAssetColor}">${fmtWan(finalAsset)} 萬</div>
+                    <div class="metric-sub">${showRealValue ? '實質購買力' : '名目金額'}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">🏦 累積支付利息</div>
+                    <div class="metric-value" style="color:#e74c3c">${fmtWan(totalInterestPaid/10000)} 萬</div>
+                    <div class="metric-sub">給銀行的成本</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">🏠 清償房貸年齡</div>
+                    <div class="metric-value" style="color:#3498db">${payoffAge} 歲</div>
+                    <div class="metric-sub">${payoffAge < retireAge ? '退休前還清' : '退休後仍需還款'}</div>
+                </div>
+            `;
+            document.getElementById('metricsBox').innerHTML = metricsHtml;
+
+            const y1Upper = maxPosFlow > 0 ? maxPosFlow * 1.4 : 20;
+            const y1Lower = minNegFlow < 0 ? minNegFlow * 1.2 : -20;
+            
+            drawChart(labels, dAsset, dNetInput, dInterest, payoffAge, retireAge, maxAge, currentAge, y1Upper, y1Lower, showRealValue);
+
+        } catch(e) {
+            console.error(e);
+        }
+    }
+
+    function downloadChart() {
+        const canvas = document.getElementById('mainChart');
+        const link = document.createElement('a');
+        link.download = '投資指揮官報表.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }
+
+    const milestonePlugin = {
+        id: 'milestonePlugin',
+        afterDatasetsDraw(chart, args, options) {
+            const { ctx, scales: { x, y } } = chart;
+            const dataset = chart.data.datasets[0].data;
+            const labels = chart.data.labels;
+            
+            const payoffAge = options.payoffAge;
+            const retireAge = options.retireAge;
+            const maxAge = options.maxAge;
+            const currentAge = options.currentAge;
+
+            const getIndex = (age) => labels.indexOf(age);
+            const payoffIdx = getIndex(payoffAge);
+            const retireIdx = getIndex(retireAge);
+            const endIdx = labels.length - 1;
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            function hexToRgba(hex, alpha) {
+                let r = parseInt(hex.slice(1, 3), 16);
+                let g = parseInt(hex.slice(3, 5), 16);
+                let b = parseInt(hex.slice(5, 7), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            }
+
+            function drawTag(index, text, colorHex, emoji, forcePosition = null) {
+                if(index === -1 || index >= dataset.length) return;
+                
+                const xPos = x.getPixelForValue(index);
+                const val = dataset[index];
+                const yPos = y.getPixelForValue(val);
+
+                const textLine1 = `${index + currentAge}: ${text}`;
+                const textLine2 = `$${new Intl.NumberFormat('en-US').format(val)}萬`;
+                
+                const tagWidth = 135; 
+                const tagHeight = 46; 
+                const leaderLength = 35; 
+
+                // 嚴格執行位置邏輯
+                let isAbove = true;
+                if (forcePosition === 'bottom') {
+                    isAbove = false;
+                } else if (forcePosition === 'top') {
+                    isAbove = true;
+                } else {
+                    // 只有終點 (null) 才使用自動判斷
+                    let tagY = yPos - leaderLength - tagHeight;
+                    if (tagY < y.top + 10) isAbove = false;
+                }
+
+                // 計算最終 Y 座標
+                let tagY = isAbove ? (yPos - leaderLength - tagHeight) : (yPos + leaderLength);
+                
+                // 終點左移修正
+                let xOffset = 0;
+                if (index === dataset.length - 1) { xOffset = -50; }
+
+                // 1. 畫點
+                ctx.beginPath();
+                ctx.arc(xPos, yPos, 5, 0, 2 * Math.PI);
+                ctx.fillStyle = colorHex;
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 2. 畫線 (嚴格連接對應邊)
+                ctx.beginPath();
+                ctx.moveTo(xPos, yPos); 
+                const lineEndY = isAbove ? tagY + tagHeight : tagY; 
+                ctx.lineTo(xPos, lineEndY); 
+                ctx.lineTo(xPos + xOffset, lineEndY); 
+                ctx.strokeStyle = '#95a5a6'; 
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // 3. 畫標籤
+                const rectX = xPos - tagWidth / 2 + xOffset;
+                const rectY = tagY;
+                const radius = 8;
+                
+                ctx.beginPath();
+                ctx.roundRect(rectX, rectY, tagWidth, tagHeight, radius);
+                ctx.fillStyle = hexToRgba(colorHex, 0.95); 
+                ctx.shadowColor = 'rgba(0,0,0,0.15)';
+                ctx.shadowBlur = 10;
+                ctx.shadowOffsetY = 4;
+                ctx.fill();
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI"';
+                ctx.fillText(`${emoji} ${textLine1}`, xPos + xOffset, rectY + 16);
+                ctx.font = '500 12px "Segoe UI"';
+                ctx.fillText(textLine2, xPos + xOffset, rectY + 34);
+            }
+
+            // 強制分層：還款在下，退休在上
+            drawTag(payoffIdx, "還清房貸", "#27ae60", "🏠", "bottom");
+            drawTag(retireIdx, "退休", "#f39c12", "🏖️", "top");
+            drawTag(endIdx, "預測終點", "#2c3e50", "🏁", null);
+
+            ctx.restore();
+        }
+    };
+
+    function drawChart(labels, assets, netInputs, interests, payoffAge, retireAge, maxAge, currentAge, y1Upper, y1Lower, isRealValue) {
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if(myChart) myChart.destroy();
+
+        let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(44, 62, 80, 0.2)');
+        gradient.addColorStop(1, 'rgba(44, 62, 80, 0.0)');
+
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        type: 'line',
+                        label: isRealValue ? '總資產 (實質)' : '總資產 (名目)',
+                        data: assets,
+                        borderColor: '#2c3e50',
+                        borderWidth: 3,
+                        backgroundColor: gradient,
+                        fill: true,
+                        tension: 0.4,
+                        order: 1,
+                        pointRadius: 0,
+                        yAxisID: 'y'
+                    },
+                    {
+                        type: 'bar',
+                        label: '資金流向 (存入/提領)',
+                        data: netInputs,
+                        backgroundColor: (context) => {
+                            const value = context.raw;
+                            return value >= 0 ? 'rgba(46, 204, 113, 0.6)' : 'rgba(243, 156, 18, 0.7)';
+                        },
+                        order: 2,
+                        yAxisID: 'y1',
+                        barPercentage: 0.5
+                    },
+                    {
+                        type: 'bar',
+                        label: '付利息',
+                        data: interests,
+                        backgroundColor: 'rgba(231, 76, 60, 0.6)',
+                        order: 3,
+                        yAxisID: 'y1',
+                        barPercentage: 0.5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(255,255,255,0.95)',
+                        titleColor: '#333',
+                        bodyColor: '#666',
+                        borderColor: '#ddd',
+                        borderWidth: 1,
+                        padding: 10,
+                        callbacks: { 
+                            label: (c) => {
+                                let label = c.dataset.label;
+                                let val = c.raw;
+                                if (label.includes('資金流向')) {
+                                    return val >= 0 ? `💰 淨存入: ${val.toLocaleString()}萬` : `💸 生活提領: ${Math.abs(val).toLocaleString()}萬`;
+                                }
+                                return `📊 ${label}: ${val.toLocaleString()}萬`;
+                            }
+                        }
+                    },
+                    milestonePlugin: {
+                        payoffAge: payoffAge,
+                        retireAge: retireAge,
+                        maxAge: maxAge,
+                        currentAge: currentAge
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }
+                    },
+                    y: { 
+                        position: 'left', 
+                        title: { display: true, text: isRealValue ? '實質資產 (萬)' : '名目資產 (萬)' },
+                        grid: { color: '#f0f0f0', borderDash: [5, 5] },
+                        beginAtZero: true
+                    },
+                    y1: { 
+                        position: 'right', 
+                        title: { display: true, text: '現金流 (萬)' },
+                        grid: { display: false },
+                        max: y1Upper,
+                        min: y1Lower
+                    }
+                }
+            },
+            plugins: [milestonePlugin]
+        });
+    }
+</script>
+
+</body>
+</html>
