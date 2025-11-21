@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>投資指揮官 v8.7 (最終修正版)</title>
+    <title>投資指揮官 v8.8 (手機美學版)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         :root {
@@ -180,17 +180,19 @@
         }
 
         @media (max-width: 500px) {
-            body { padding: 10px; }
+            body { padding: 12px; }
             .card { padding: 15px; }
             .input-group-flex { flex-direction: column; gap: 15px; }
-            .chart-header { flex-direction: column-reverse; align-items: stretch; }
+            /* 手機版上方控制列改成上下堆疊，增加間距 */
+            .chart-header { flex-direction: column-reverse; align-items: stretch; gap: 15px; }
             .btn-download { width: 100%; text-align: center; padding: 12px; }
-            .chart-wrapper { height: 350px; } 
+            /* 圖表高度適度增加一點點 */
+            .chart-wrapper { height: 380px; } 
             .metrics-grid { grid-template-columns: 1fr; } 
             .dashboard-mini { gap: 10px; padding: 12px; }
             .dash-item span { font-size: 1rem; }
-            .switch-container { background: #f9f9f9; padding: 10px; border-radius: 8px; justify-content: space-between; }
-            .switch-label-text { order: 1; }
+            .switch-container { background: #f9f9f9; padding: 12px; border-radius: 8px; justify-content: space-between; margin-bottom: 0; }
+            .switch-label-text { order: 1; font-size: 0.9rem;}
             .switch { order: 2; }
         }
     </style>
@@ -199,7 +201,7 @@
 
 <div class="container">
     <div class="full-width">
-        <h2>🚀 投資指揮官 v8.7 <span style="font-size:0.9rem; font-weight:normal; background:#eee; padding:2px 8px; border-radius:12px; color:#555;">最終修正版</span></h2>
+        <h2>🚀 投資指揮官 v8.8 <span style="font-size:0.9rem; font-weight:normal; background:#eee; padding:2px 8px; border-radius:12px; color:#555;">手機美學版</span></h2>
     </div>
 
     <div class="card">
@@ -551,6 +553,11 @@
             const retireIdx = getIndex(retireAge);
             const endIdx = labels.length - 1;
 
+            // 偵測是否為手機 (寬度 < 500px)
+            const isMobile = window.innerWidth < 500;
+            // 手機版縮放係數 (0.8 = 縮小 20%)
+            const scale = isMobile ? 0.75 : 1;
+
             ctx.save();
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -572,9 +579,12 @@
                 const textLine1 = `${index + currentAge}: ${text}`;
                 const textLine2 = `$${new Intl.NumberFormat('en-US').format(val)}萬`;
                 
-                const tagWidth = 135; 
-                const tagHeight = 46; 
-                const leaderLength = 35; 
+                // 依據裝置縮放尺寸
+                const tagWidth = 135 * scale; 
+                const tagHeight = 46 * scale; 
+                const leaderLength = 35 * scale; 
+                const fontSizeBig = 13 * scale;
+                const fontSizeSmall = 12 * scale;
 
                 // 嚴格執行位置邏輯
                 let isAbove = true;
@@ -583,21 +593,22 @@
                 } else if (forcePosition === 'top') {
                     isAbove = true;
                 } else {
-                    // 只有終點 (null) 才使用自動判斷
+                    // 終點邏輯
                     let tagY = yPos - leaderLength - tagHeight;
                     if (tagY < y.top + 10) isAbove = false;
                 }
 
-                // 計算最終 Y 座標
                 let tagY = isAbove ? (yPos - leaderLength - tagHeight) : (yPos + leaderLength);
                 
-                // 終點左移修正
+                // 終點左移修正 (手機版移更多，避免切到)
                 let xOffset = 0;
-                if (index === dataset.length - 1) { xOffset = -50; }
+                if (index === dataset.length - 1) { 
+                    xOffset = isMobile ? -70 : -50; 
+                }
 
                 // 1. 畫點
                 ctx.beginPath();
-                ctx.arc(xPos, yPos, 5, 0, 2 * Math.PI);
+                ctx.arc(xPos, yPos, 5 * scale, 0, 2 * Math.PI);
                 ctx.fillStyle = colorHex;
                 ctx.fill();
                 ctx.strokeStyle = '#fff';
@@ -617,10 +628,21 @@
                 // 3. 畫標籤
                 const rectX = xPos - tagWidth / 2 + xOffset;
                 const rectY = tagY;
-                const radius = 8;
+                const radius = 8 * scale;
                 
                 ctx.beginPath();
-                ctx.roundRect(rectX, rectY, tagWidth, tagHeight, radius);
+                // 簡單繪製圓角矩形 (為了相容性手繪)
+                ctx.moveTo(rectX + radius, rectY);
+                ctx.lineTo(rectX + tagWidth - radius, rectY);
+                ctx.quadraticCurveTo(rectX + tagWidth, rectY, rectX + tagWidth, rectY + radius);
+                ctx.lineTo(rectX + tagWidth, rectY + tagHeight - radius);
+                ctx.quadraticCurveTo(rectX + tagWidth, rectY + tagHeight, rectX + tagWidth - radius, rectY + tagHeight);
+                ctx.lineTo(rectX + radius, rectY + tagHeight);
+                ctx.quadraticCurveTo(rectX, rectY + tagHeight, rectX, rectY + tagHeight - radius);
+                ctx.lineTo(rectX, rectY + radius);
+                ctx.quadraticCurveTo(rectX, rectY, rectX + radius, rectY);
+                ctx.closePath();
+
                 ctx.fillStyle = hexToRgba(colorHex, 0.95); 
                 ctx.shadowColor = 'rgba(0,0,0,0.15)';
                 ctx.shadowBlur = 10;
@@ -628,10 +650,10 @@
                 ctx.fill();
 
                 ctx.fillStyle = '#fff';
-                ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI"';
-                ctx.fillText(`${emoji} ${textLine1}`, xPos + xOffset, rectY + 16);
-                ctx.font = '500 12px "Segoe UI"';
-                ctx.fillText(textLine2, xPos + xOffset, rectY + 34);
+                ctx.font = `bold ${fontSizeBig}px -apple-system, BlinkMacSystemFont, "Segoe UI"`;
+                ctx.fillText(`${emoji} ${textLine1}`, xPos + xOffset, rectY + tagHeight*0.35);
+                ctx.font = `500 ${fontSizeSmall}px "Segoe UI"`;
+                ctx.fillText(textLine2, xPos + xOffset, rectY + tagHeight*0.75);
             }
 
             // 強制分層：還款在下，退休在上
@@ -650,6 +672,10 @@
         let gradient = ctx.createLinearGradient(0, 0, 0, 400);
         gradient.addColorStop(0, 'rgba(44, 62, 80, 0.2)');
         gradient.addColorStop(1, 'rgba(44, 62, 80, 0.0)');
+
+        // 增加 Padding 防止標籤被切 (手機版增加更多 Top Padding)
+        const isMobile = window.innerWidth < 500;
+        const topPadding = isMobile ? 60 : 40;
 
         myChart = new Chart(ctx, {
             type: 'bar',
@@ -695,6 +721,9 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: { top: topPadding, left: 10, right: 10, bottom: 10 }
+                },
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { display: false },
